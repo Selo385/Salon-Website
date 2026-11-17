@@ -1,0 +1,20 @@
+# Technische Entscheidungen
+
+| # | Entscheidung | Begründung |
+|---|---|---|
+| 1 | Kein `salon_id` in den Tabellen (Abweichung vom Planungsdokument) | Vorgabe: ein einzelner Salon. Einfachere RLS und Abfragen. Mandantenfähigkeit wäre eine spätere Migration. |
+| 2 | Autorisierung ausschließlich per RLS, Rolle in `salon_members` | Ein Ort für Rechte, auch bei direktem API-Zugriff wirksam. |
+| 3 | Rollenfunktionen `security definer` mit `search_path = ''` | Vermeidet Rekursion in Policies und Schema-Hijacking. |
+| 4 | `anon` hat keinerlei Tabellenrechte | Nichts ist öffentlich. Einziger anonymer Zugriff: RPC `health_check()` (liefert nur die Uhrzeit). |
+| 5 | Kunden-Login Pflicht, Kunden dürfen nur eigene Termine/Daten lesen. Buchen läuft später über validierte Server Actions mit Service Role | Verhindert, dass Clients Preise, Status oder Mitarbeiter frei setzen. |
+| 6 | Doppelbuchungsschutz per Exclusion Constraint (`btree_gist`) plus Trigger gegen Sperrzeiten | Garantiert auch bei gleichzeitigen Anfragen. Genehmigter Urlaub erzeugt per Trigger automatisch `blocked_times`. |
+| 7 | Buchhaltungstabellen: Löschen verboten, `payments`/`refunds` unveränderbar | Storno nur per Gegenbuchung. **Das ist Vorbereitung, keine GoBD-/KassenSichV-Konformität.** |
+| 8 | `invoices.invoice_no` als Identity-Spalte | Kann bei Rollbacks Lücken haben. Vor produktiver Rechnungsstellung steuerlich klären, ggf. lückenlosen Zähler nachrüsten. |
+| 9 | TSE: nur Platzhalter-Feld `fiscal_ref` | Rechtskonforme Kasse braucht zertifizierte externe Lösung und steuerliche Prüfung. Wird in Phase 3 als Adapter angebunden. |
+| 10 | Kundenfotos: privater Bucket, nur Personal, DB erzwingt `consent_given = true` | DSGVO-Einwilligung, keine öffentlichen URLs. |
+| 11 | `chat_messages`/`tool_calls` ohne Policy | Nur serverseitig per Service Role beschreibbar/lesbar. |
+| 12 | Service-Role-Client nur in `lib/supabase/admin.ts` mit `server-only` | Key gelangt nie ins Client-Bundle. Test prüft Verwendung. |
+| 13 | Zugriffsentscheidungen mit `auth.getUser()`, nie `getSession()` | Token wird serverseitig validiert. |
+| 14 | Tests mit Node-Runner statt Vitest/Jest | Keine Zusatzabhängigkeit, läuft ohne Installation. |
+| 15 | Eigene schlanke UI-Komponenten im shadcn-Muster, ohne Radix | Nur benötigte Komponenten. Radix-basierte shadcn-Komponenten bei Bedarf nachziehen (`components.json` ist vorbereitet). |
+| 16 | Zeitzone fest `Europe/Berlin` (`lib/time.ts`, Urlaubstrigger) | Ein Salon in Deutschland. |
